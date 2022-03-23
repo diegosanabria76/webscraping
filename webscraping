@@ -1,0 +1,57 @@
+import requests
+from bs4 import BeautifulSoup
+import lxml
+from csv import writer 
+
+
+def scrape_page(url):
+    players = []
+    
+    result = requests.get(url)
+    src = result.content
+    soup = BeautifulSoup(src, 'lxml')
+    table = soup.find('table', {'class': 'tablehead'})
+    #table = soup.find('table', {'class' :'wpDataTables wpDataTablesWrapper wpDataTableID-6231 wpdt-pagination-right'})
+    
+   
+    filas = table.findAll('tr')
+    
+    for fila in filas:
+        tds = fila.findAll('td')
+        
+       
+        if tds[0].contents[0] != 'RK':
+            nombre = tds[1].find('a').contents[0] if tds[1].find('a') != None else tds[1].contents[0]
+            equipo = tds[2].find('a').contents[0] if tds[2].find('a') != None else tds[2].contents[0]
+            salario = tds[3].contents[0]
+        
+            players.append({
+                'nombre':nombre,
+                'equipo' : equipo,
+                'salario' : salario
+             })
+        
+           
+    controls = soup.find('div', {'class': 'controls'}).contents
+    controls = list(filter(lambda x: x !=  '\n', controls))
+    
+   
+    if controls[2].name == 'div':
+        return players
+    else:
+        next_link = 'http:' + controls[2]['href']
+        players = players + scrape_page(next_link)
+        return players
+    
+infojugadores = scrape_page('http://www.espn.com/nba/salaries') 
+#infojugadores = scrape_page('https://www.goodcarbadcar.net/2021-us-vehicle-sales-figures-by-model/') 
+
+
+with open('Adiego.csv', 'w') as csv_file:
+    csv_writer = writer(csv_file)
+    csv_writer.writerow(['ranking', 'Name', 'Team', 'Salary'])
+    
+    i = 1
+    for info in infojugadores:
+        csv_writer.writerow([ i, info['nombre'], info['equipo'], info['salario']])
+        i += 1
